@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Farm, supabase } from '../../lib/supabase';
+import { Farm } from '../../lib/supabase';
 import { Cloud, Sprout, TrendingUp, DollarSign, MapPin, Droplets, Activity } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
   farm: Farm | null;
+  onNavigate?: (tab: string) => void;
 }
 
-export default function DashboardOverview({ farm }: Props) {
-  const { user } = useAuth();
+export default function DashboardOverview({ farm, onNavigate }: Props) {
   const [stats, setStats] = useState({
     currentCrop: 'Wheat',
     temperature: 24,
@@ -17,70 +16,12 @@ export default function DashboardOverview({ farm }: Props) {
     soilHealth: 'Good',
     insights: 3,
   });
-  const [aiInsights, setAiInsights] = useState<any[]>([]);
 
-  useEffect(() => {
-    if (farm) {
-      fetchInsights();
-    }
-  }, [farm]);
-
-  async function fetchInsights() {
-    try {
-      const { data, error } = await supabase
-        .from('ai_insights')
-        .select('*')
-        .eq('farm_id', farm?.id)
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      if (data && data.length === 0) {
-        await generateSampleInsights();
-      } else {
-        setAiInsights(data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching insights:', error);
-    }
-  }
-
-  async function generateSampleInsights() {
-    if (!farm || !user) return;
-
-    const sampleInsights = [
-      {
-        farm_id: farm.id,
-        farmer_id: user.id,
-        insight_text: 'Optimal sowing time for Wheat is approaching. Weather conditions are favorable.',
-        insight_type: 'sowing_alert',
-        priority: 'high',
-      },
-      {
-        farm_id: farm.id,
-        farmer_id: user.id,
-        insight_text: 'Your soil nitrogen levels may be low. Consider applying fertilizer before next season.',
-        insight_type: 'soil_health',
-        priority: 'medium',
-      },
-      {
-        farm_id: farm.id,
-        farmer_id: user.id,
-        insight_text: 'Market prices for Mustard are 15% higher than last year. Consider allocation.',
-        insight_type: 'market_opportunity',
-        priority: 'medium',
-      },
-    ];
-
-    const { data, error } = await supabase
-      .from('ai_insights')
-      .insert(sampleInsights)
-      .select();
-
-    if (!error && data) {
-      setAiInsights(data);
-    }
-  }
+  const aiInsights = [
+    { insight_text: 'Optimal sowing time for Wheat is approaching. Weather conditions are favorable.', priority: 'high', created_at: new Date().toISOString() },
+    { insight_text: 'Your soil nitrogen levels may be low. Consider applying fertilizer before next season.', priority: 'medium', created_at: new Date().toISOString() },
+    { insight_text: 'Market prices for Mustard are 15% higher than last year. Consider allocation.', priority: 'medium', created_at: new Date().toISOString() },
+  ];
 
   const summaryCards = [
     { label: 'Current Crop', value: stats.currentCrop, icon: Sprout, color: 'green' },
@@ -194,15 +135,24 @@ export default function DashboardOverview({ farm }: Props) {
         <h3 className="text-xl font-semibold mb-2">Quick Actions</h3>
         <p className="text-green-100 mb-4">Get started with AI-powered recommendations</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all px-4 py-3 rounded-lg text-left">
+          <button
+            onClick={() => onNavigate && onNavigate('crops')}
+            className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all px-4 py-3 rounded-lg text-left space-y-2"
+          >
             <Sprout className="h-5 w-5 mb-1" />
             <p className="font-medium text-sm">Get Crop Recommendations</p>
           </button>
-          <button className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all px-4 py-3 rounded-lg text-left">
+          <button
+            onClick={() => onNavigate && onNavigate('yield')}
+            className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all px-4 py-3 rounded-lg text-left space-y-2"
+          >
             <TrendingUp className="h-5 w-5 mb-1" />
             <p className="font-medium text-sm">Predict Yield</p>
           </button>
-          <button className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all px-4 py-3 rounded-lg text-left">
+          <button
+            onClick={() => onNavigate && onNavigate('weather')}
+            className="bg-white bg-opacity-20 hover:bg-opacity-30 transition-all px-4 py-3 rounded-lg text-left space-y-2"
+          >
             <Cloud className="h-5 w-5 mb-1" />
             <p className="font-medium text-sm">Check Weather</p>
           </button>

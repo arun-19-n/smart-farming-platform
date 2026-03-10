@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Farm, supabase, Expense, Payment } from '../../lib/supabase';
+import { Farm, Expense, Payment } from '../../lib/supabase';
 import { DollarSign, TrendingUp, TrendingDown, Plus, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -30,6 +30,9 @@ export default function FinancialAnalytics({ farm }: Props) {
     pendingAmount: '',
   });
 
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
   useEffect(() => {
     if (farm) {
       fetchFinancialData();
@@ -40,17 +43,22 @@ export default function FinancialAnalytics({ farm }: Props) {
     if (!farm) return;
 
     try {
-      const { data: expensesData } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('farm_id', farm.id)
-        .order('expense_date', { ascending: false });
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
 
-      const { data: paymentsData } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('farm_id', farm.id)
-        .order('sale_date', { ascending: false });
+      if (!token) return;
+
+      const [expensesRes, paymentsRes] = await Promise.all([
+        fetch(`${apiUrl}/expenses/farm/${farm.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+        fetch(`${apiUrl}/payments/farm/${farm.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+      ]);
+
+      const expensesData = expensesRes.ok ? await expensesRes.json() : [];
+      const paymentsData = paymentsRes.ok ? await paymentsRes.json() : [];
 
       setExpenses(expensesData || []);
       setPayments(paymentsData || []);
@@ -61,24 +69,57 @@ export default function FinancialAnalytics({ farm }: Props) {
 
   async function handleAddExpense(e: React.FormEvent) {
     e.preventDefault();
-    if (!farm || !user) return;
+    if (!farm || !user) {
+      setError('Farm or user not found');
+      return;
+    }
+
+    if (!expenseForm.amount) {
+      setError('Please enter an amount');
+      return;
+    }
 
     try {
-      await supabase.from('expenses').insert({
-        farm_id: farm.id,
-        farmer_id: user.id,
-        category: expenseForm.category,
-        amount: parseFloat(expenseForm.amount),
-        description: expenseForm.description,
-        crop_related: expenseForm.cropRelated || null,
-        expense_date: new Date().toISOString().split('T')[0],
+      setError('');
+      setSuccess('');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
+
+      if (!token) {
+        setError('Not authenticated');
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          farm_id: farm.id,
+          farmer_id: user.id,
+          category: expenseForm.category,
+          amount: parseFloat(expenseForm.amount),
+          description: expenseForm.description,
+          crop_related: expenseForm.cropRelated || null,
+          expense_date: new Date().toISOString().split('T')[0],
+        }),
       });
 
-      setExpenseForm({ category: 'Seeds', amount: '', description: '', cropRelated: '' });
-      setShowExpenseForm(false);
-      fetchFinancialData();
+      if (response.ok) {
+        setExpenseForm({ category: 'Seeds', amount: '', description: '', cropRelated: '' });
+        setShowExpenseForm(false);
+        setSuccess('Expense added successfully!');
+        setTimeout(() => setSuccess(''), 3000);
+        fetchFinancialData();
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to add expense');
+      }
     } catch (error) {
       console.error('Error adding expense:', error);
+      setError('Error adding expense. Please try again.');
     }
   }
 
@@ -87,26 +128,41 @@ export default function FinancialAnalytics({ farm }: Props) {
     if (!farm || !user) return;
 
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
+
+      if (!token) return;
+
       const amountReceived = parseFloat(revenueForm.amountReceived);
       const pendingAmount = parseFloat(revenueForm.pendingAmount || '0');
       const paymentStatus =
         pendingAmount > 0 ? (amountReceived > 0 ? 'Partial' : 'Pending') : 'Paid';
 
-      await supabase.from('payments').insert({
-        farm_id: farm.id,
-        farmer_id: user.id,
-        crop_sold: revenueForm.cropSold,
-        quantity: parseFloat(revenueForm.quantity),
-        buyer_name: revenueForm.buyerName,
-        amount_received: amountReceived,
-        pending_amount: pendingAmount,
-        payment_status: paymentStatus,
-        sale_date: new Date().toISOString().split('T')[0],
+      const response = await fetch(`${apiUrl}/payments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          farm_id: farm.id,
+          crop_sold: revenueForm.cropSold,
+          quantity: parseFloat(revenueForm.quantity),
+          buyer_name: revenueForm.buyerName,
+          amount_received: amountReceived,
+          pending_amount: pendingAmount,
+          payment_status: paymentStatus,
+          sale_date: new Date().toISOString().split('T')[0],
+        }),
       });
 
-      setRevenueForm({ cropSold: '', quantity: '', buyerName: '', amountReceived: '', pendingAmount: '' });
-      setShowRevenueForm(false);
-      fetchFinancialData();
+      if (response.ok) {
+        setRevenueForm({ cropSold: '', quantity: '', buyerName: '', amountReceived: '', pendingAmount: '' });
+        setShowRevenueForm(false);
+        fetchFinancialData();
+      } else {
+        console.error('Failed to add revenue');
+      }
     } catch (error) {
       console.error('Error adding revenue:', error);
     }

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { Users, Sprout, MessageSquare, TrendingUp } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -18,31 +17,34 @@ export default function AdminPanel() {
 
   async function fetchAdminData() {
     try {
-      const { data: farmersData, count: farmerCount } = await supabase
-        .from('farmers')
-        .select('*', { count: 'exact' })
-        .eq('role', 'farmer');
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
 
-      const { count: farmsCount } = await supabase
-        .from('farms')
-        .select('*', { count: 'exact' });
+      if (!token) return;
 
-      const { count: queriesCount } = await supabase
-        .from('chatbot_queries')
-        .select('*', { count: 'exact' });
+      const [statsRes, farmersRes] = await Promise.all([
+        fetch(`${apiUrl}/admin/stats`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+        fetch(`${apiUrl}/admin/farmers`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        }),
+      ]);
 
-      const { count: recsCount } = await supabase
-        .from('crop_recommendations')
-        .select('*', { count: 'exact' });
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats({
+          totalFarmers: statsData.totalFarmers || 0,
+          activeFarms: statsData.activeFarms || 0,
+          chatbotQueries: statsData.chatbotQueries || 0,
+          recommendations: statsData.recommendations || 0,
+        });
+      }
 
-      setStats({
-        totalFarmers: farmerCount || 0,
-        activeFarms: farmsCount || 0,
-        chatbotQueries: queriesCount || 0,
-        recommendations: recsCount || 0,
-      });
-
-      setFarmers(farmersData || []);
+      if (farmersRes.ok) {
+        const farmersData = await farmersRes.json();
+        setFarmers(farmersData || []);
+      }
     } catch (error) {
       console.error('Error fetching admin data:', error);
     }

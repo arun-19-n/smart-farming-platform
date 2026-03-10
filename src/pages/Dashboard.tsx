@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, Farm } from '../lib/supabase';
+import { Farm } from '../lib/supabase';
 import {
   LayoutDashboard,
   Cloud,
@@ -27,9 +27,24 @@ import ChatBot from '../components/ChatBot';
 
 type Tab = 'overview' | 'weather' | 'crops' | 'yield' | 'finance' | 'market' | 'disease' | 'admin';
 
-export default function Dashboard() {
+interface DashboardProps {
+  onBrandClick: () => void;
+}
+
+const VALID_TABS: Tab[] = ['overview', 'weather', 'crops', 'yield', 'finance', 'market', 'disease', 'admin'];
+
+function getTabFromUrl(): Tab {
+  const searchParams = new URLSearchParams(window.location.search);
+  const tab = searchParams.get('tab');
+  if (tab && VALID_TABS.includes(tab as Tab)) {
+    return tab as Tab;
+  }
+  return 'overview';
+}
+
+export default function Dashboard({ onBrandClick }: DashboardProps) {
   const { user, farmer, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [activeTab, setActiveTab] = useState<Tab>(() => getTabFromUrl());
   const [farm, setFarm] = useState<Farm | null>(null);
   const [loading, setLoading] = useState(true);
   const [showChat, setShowChat] = useState(false);
@@ -40,16 +55,65 @@ export default function Dashboard() {
     }
   }, [user]);
 
+  useEffect(() => {
+    const currentTab = getTabFromUrl();
+    setActiveTab(currentTab);
+
+    if (window.location.pathname === '/dashboard') {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (!searchParams.get('tab')) {
+        window.history.replaceState({}, '', '/dashboard?tab=overview');
+      }
+    }
+
+    const handlePopState = () => {
+      if (window.location.pathname === '/dashboard') {
+        setActiveTab(getTabFromUrl());
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'admin' && farmer?.role !== 'admin') {
+      setActiveTab('overview');
+      if (window.location.pathname === '/dashboard') {
+        window.history.replaceState({}, '', '/dashboard?tab=overview');
+      }
+    }
+  }, [activeTab, farmer?.role]);
+
+  function handleTabChange(tab: Tab) {
+    setActiveTab(tab);
+    if (window.location.pathname === '/dashboard') {
+      window.history.pushState({}, '', `/dashboard?tab=${tab}`);
+    }
+  }
+
   async function fetchFarm() {
     try {
-      const { data, error } = await supabase
-        .from('farms')
-        .select('*')
-        .eq('farmer_id', user?.id)
-        .maybeSingle();
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
 
-      if (error) throw error;
-      setFarm(data);
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${apiUrl}/farms`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFarm(data);
+      } else {
+        console.error('Failed to fetch farm');
+      }
     } catch (error) {
       console.error('Error fetching farm:', error);
     } finally {
@@ -85,13 +149,19 @@ export default function Dashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="bg-green-600 p-2 rounded-lg">
-                <Sprout className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">SmartFarm AI</h1>
-                <p className="text-xs text-gray-500">{farm?.farm_name || 'No Farm'}</p>
-              </div>
+              <button
+                type="button"
+                onClick={onBrandClick}
+                className="flex items-center space-x-3 hover:opacity-90 transition-opacity"
+              >
+                <div className="bg-green-600 p-2 rounded-lg">
+                  <Sprout className="h-6 w-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <h1 className="text-xl font-bold text-gray-900">SmartFarm AI</h1>
+                  <p className="text-xs text-gray-500">{farm?.farm_name || 'No Farm'}</p>
+                </div>
+              </button>
             </div>
 
             <div className="flex items-center space-x-4">
@@ -122,7 +192,7 @@ export default function Dashboard() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as Tab)}
+                  onClick={() => handleTabChange(item.id as Tab)}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                     activeTab === item.id
                       ? 'bg-green-600 text-white'
@@ -137,7 +207,7 @@ export default function Dashboard() {
           </aside>
 
           <main className="flex-1">
-            {activeTab === 'overview' && <DashboardOverview farm={farm} />}
+            {activeTab === 'overview' && <DashboardOverview farm={farm} onNavigate={(tab) => handleTabChange(tab as Tab)} />}
             {activeTab === 'weather' && <WeatherDashboard farm={farm} />}
             {activeTab === 'crops' && <CropRecommendation farm={farm} />}
             {activeTab === 'yield' && <YieldPrediction farm={farm} />}

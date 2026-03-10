@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Farm, supabase, Crop } from '../../lib/supabase';
+import { Farm, Crop } from '../../lib/supabase';
 import { Sprout, TrendingUp, DollarSign, Droplets, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -31,12 +31,24 @@ export default function CropRecommendation({ farm }: Props) {
     setLoading(true);
 
     try {
-      const { data: crops, error } = await supabase
-        .from('crops_database')
-        .select('*')
-        .eq('season', selectedSeason);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
 
-      if (error) throw error;
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch crops for the selected season
+      const cropsRes = await fetch(`${apiUrl}/crops/by-season/${selectedSeason}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (!cropsRes.ok) {
+        throw new Error('Failed to fetch crops');
+      }
+
+      const crops = await cropsRes.json();
 
       const filteredCrops = crops?.filter(crop =>
         crop.suitable_soil_types.includes(farm.soil_type || '')
@@ -69,14 +81,20 @@ export default function CropRecommendation({ farm }: Props) {
 
       if (user) {
         const topRec = recommendations[0];
-        await supabase.from('crop_recommendations').insert({
-          farm_id: farm.id,
-          farmer_id: user.id,
-          recommended_crop: topRec.crop.crop_name,
-          confidence_score: topRec.confidence,
-          profit_potential: topRec.profitPotential,
-          reasoning: topRec.reasoning,
-          season: selectedSeason,
+        await fetch(`${apiUrl}/recommendations`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            farm_id: farm.id,
+            recommended_crop: topRec.crop.crop_name,
+            confidence_score: topRec.confidence,
+            profit_potential: topRec.profitPotential,
+            reasoning: topRec.reasoning,
+            season: selectedSeason,
+          }),
         });
       }
     } catch (error) {

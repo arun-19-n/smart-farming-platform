@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Farm, supabase } from '../../lib/supabase';
+import { Farm } from '../../lib/supabase';
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 
 interface Props {
@@ -24,25 +24,8 @@ export default function MarketPrices({ farm }: Props) {
 
   async function fetchMarketPrices() {
     try {
-      let { data, error } = await supabase
-        .from('market_prices')
-        .select('*')
-        .order('price_date', { ascending: false })
-        .limit(20);
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        await generateSamplePrices();
-        const { data: newData } = await supabase
-          .from('market_prices')
-          .select('*')
-          .order('price_date', { ascending: false })
-          .limit(20);
-        data = newData || [];
-      }
-
-      setPrices(data);
+      // Generate sample prices in memory
+      await generateSamplePrices();
     } catch (error) {
       console.error('Error fetching market prices:', error);
     } finally {
@@ -65,6 +48,7 @@ export default function MarketPrices({ farm }: Props) {
       for (const location of locations) {
         const priceVariation = Math.floor(Math.random() * 400) - 200;
         samplePrices.push({
+          id: `${crop.name}-${location}-${Date.now()}`,
           crop_name: crop.name,
           market_location: location,
           price_per_quintal: crop.basePrice + priceVariation,
@@ -73,7 +57,7 @@ export default function MarketPrices({ farm }: Props) {
       }
     }
 
-    await supabase.from('market_prices').insert(samplePrices);
+    setPrices(samplePrices);
   }
 
   const groupedPrices = prices.reduce((acc, price) => {

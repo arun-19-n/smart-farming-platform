@@ -1,14 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+// Re-export from database.ts for backward compatibility
+export { db as supabase, setAuthToken, getAuthToken } from './database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
+// Type definitions
 export type UserRole = 'farmer' | 'admin';
 
 export interface Farmer {
@@ -72,3 +65,4 @@ export interface Payment {
   payment_status: string;
   created_at: string;
 }
+

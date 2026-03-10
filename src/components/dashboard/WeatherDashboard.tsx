@@ -47,9 +47,14 @@ export default function WeatherDashboard({ farm }: Props) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-1">Weather Dashboard</h2>
-        <p className="text-gray-600">Real-time weather data for {farm.location_name}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Weather Dashboard</h2>
+          <p className="text-gray-600">Real-time weather data for {farm.location_name}</p>
+        </div>
+        <div className="bg-gray-100 px-3 py-2 rounded-lg text-xs text-gray-600">
+          📊 <strong>Data Source:</strong> Sample Data (Real-time API integration coming soon)
+        </div>
       </div>
 
       <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-8 text-white">

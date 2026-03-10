@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { MapPin, Droplets } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { MapPin, Droplets, Sprout } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface FarmSetupProps {
   onComplete: () => void;
+  onBrandClick: () => void;
 }
 
-export default function FarmSetup({ onComplete }: FarmSetupProps) {
+export default function FarmSetup({ onComplete, onBrandClick }: FarmSetupProps) {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -58,12 +58,25 @@ export default function FarmSetup({ onComplete }: FarmSetupProps) {
     setLoading(true);
 
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+      const token = localStorage.getItem('auth_token');
+
+      if (!token) {
+        setError('Not authenticated');
+        setLoading(false);
+        return;
+      }
+
       const estimatedSoil = formData.soilType || estimateSoilType();
 
-      const { data: farmData, error: farmError } = await supabase
-        .from('farms')
-        .insert({
-          farmer_id: user.id,
+      // Create farm
+      const farmResponse = await fetch(`${apiUrl}/farms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           farm_name: formData.farmName,
           location_name: formData.locationName,
           latitude: formData.latitude,
@@ -71,12 +84,16 @@ export default function FarmSetup({ onComplete }: FarmSetupProps) {
           farm_size: parseFloat(formData.farmSize),
           irrigation_type: formData.irrigationType,
           soil_type: estimatedSoil,
-        })
-        .select()
-        .single();
+        }),
+      });
 
-      if (farmError) throw farmError;
+      if (!farmResponse.ok) {
+        throw new Error('Failed to create farm');
+      }
 
+      const farmData = await farmResponse.json();
+
+      // Add farm history if in step 2
       if (farmData && step === 2) {
         const historyRecords = formData.pastCrops
           .map((crop, index) => ({
@@ -90,11 +107,21 @@ export default function FarmSetup({ onComplete }: FarmSetupProps) {
           .filter(record => record.crop_grown);
 
         if (historyRecords.length > 0) {
-          const { error: historyError } = await supabase
-            .from('farm_history')
-            .insert(historyRecords);
+          const historyResponse = await fetch(`${apiUrl}/farm-history/batch`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              farm_id: farmData.id,
+              records: historyRecords,
+            }),
+          });
 
-          if (historyError) throw historyError;
+          if (!historyResponse.ok) {
+            throw new Error('Failed to save farm history');
+          }
         }
       }
 
@@ -124,9 +151,30 @@ export default function FarmSetup({ onComplete }: FarmSetupProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-xl shadow-lg p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
+      <nav className="bg-white/90 backdrop-blur-md border-b border-emerald-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBrandClick}
+            className="flex items-center gap-2 hover:opacity-90 transition-opacity"
+          >
+            <Sprout className="h-7 w-7 text-green-600" />
+            <span className="text-2xl font-bold text-green-800">SmartFarm AI</span>
+          </button>
+          <button
+            type="button"
+            onClick={onBrandClick}
+            className="text-sm font-semibold text-green-700 hover:text-green-900"
+          >
+            Home
+          </button>
+        </div>
+      </nav>
+
+      <div className="py-8 px-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-xl shadow-lg p-8 border border-emerald-100">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Farm Profile Setup</h2>
             <p className="text-gray-600">
@@ -382,6 +430,7 @@ export default function FarmSetup({ onComplete }: FarmSetupProps) {
               </>
             )}
           </form>
+          </div>
         </div>
       </div>
     </div>

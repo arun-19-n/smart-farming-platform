@@ -174,6 +174,18 @@ export default function YieldPrediction({ farm }: Props) {
         </div>
 
         <div className="space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h4 className="font-semibold text-blue-900 mb-3">Yield Calculation Formula</h4>
+            <div className="text-sm text-blue-800 space-y-2 font-mono">
+              <div>1. Nutrient Score = (N/100 + P/60 + K/50) ÷ 3</div>
+              <div>2. Base Yield = Crop specific (Wheat: 20, Rice: 25, Maize: 18 quintals/acre)</div>
+              <div>3. <strong>Final Yield = Base Yield × (0.7 + Nutrient Score × 0.5)</strong></div>
+              <div className="text-xs text-blue-700 mt-2 border-t border-blue-200 pt-2">
+                Where: N = Nitrogen, P = Phosphorus, K = Potassium (kg/ha)
+              </div>
+            </div>
+          </div>
+
           {prediction ? (
             <>
               <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-8 text-white">
