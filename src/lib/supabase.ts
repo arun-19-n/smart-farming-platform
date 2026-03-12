@@ -49,6 +49,8 @@ export interface Expense {
   description: string | null;
   expense_date: string;
   crop_related: string | null;
+  season: string | null;
+  season_year: number | null;
   created_at: string;
 }
 
@@ -62,6 +64,8 @@ export interface Payment {
   amount_received: number;
   pending_amount: number;
   sale_date: string;
+  season: string | null;
+  season_year: number | null;
   payment_status: string;
   created_at: string;
 }

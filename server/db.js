@@ -11,6 +11,29 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+function ensureColumnExists(tableName, columnName, columnDefinition) {
+  db.all(`PRAGMA table_info(${tableName})`, (err, columns) => {
+    if (err) {
+      console.error(`Error checking columns for ${tableName}:`, err.message);
+      return;
+    }
+
+    const hasColumn = Array.isArray(columns) && columns.some((column) => column.name === columnName);
+    if (hasColumn) return;
+
+    db.run(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`,
+      (alterErr) => {
+        if (alterErr) {
+          console.error(`Error adding ${columnName} to ${tableName}:`, alterErr.message);
+        } else {
+          console.log(`✓ Added ${columnName} to ${tableName}`);
+        }
+      }
+    );
+  });
+}
+
 function initializeDatabase() {
   db.serialize(() => {
     // Farmers table
@@ -86,6 +109,8 @@ function initializeDatabase() {
       description TEXT,
       expense_date DATE,
       crop_related TEXT,
+      season TEXT,
+      season_year INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(farm_id) REFERENCES farms(id),
       FOREIGN KEY(farmer_id) REFERENCES farmers(id)
@@ -104,6 +129,8 @@ function initializeDatabase() {
       amount_received REAL,
       pending_amount REAL,
       sale_date DATE,
+      season TEXT,
+      season_year INTEGER,
       payment_status TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(farm_id) REFERENCES farms(id),
@@ -153,6 +180,12 @@ function initializeDatabase() {
       if (err) console.error('Error creating soil_types table:', err.message);
       else insertDefaultData();
     });
+
+    // Backfill columns for existing local databases created before these fields existed.
+    ensureColumnExists('expenses', 'season', 'TEXT');
+    ensureColumnExists('expenses', 'season_year', 'INTEGER');
+    ensureColumnExists('payments', 'season', 'TEXT');
+    ensureColumnExists('payments', 'season_year', 'INTEGER');
   });
 }
 
