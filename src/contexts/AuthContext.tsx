@@ -32,7 +32,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+//const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_URL = 'https://smart-farming-platform-production.up.railway.app/api';
 
 function normalizeFarmer(raw: RawFarmer | null | undefined, previous: Farmer | null = null): Farmer | null {
   const id = raw?.id || previous?.id;
