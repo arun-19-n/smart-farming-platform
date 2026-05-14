@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: smartfarmai-backend
+    env: node
+    plan: free
+    buildCommand: "npm install --prefix server"
+    startCommand: "node server/server.js"
+    repo: "<YOUR_GITHUB_REPO>"
+    branch: main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3001"
