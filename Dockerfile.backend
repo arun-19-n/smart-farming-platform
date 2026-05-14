@@ -1,0 +1,20 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy backend code
+COPY server ./server
+COPY package.json package-lock.json ./
+
+# Install dependencies
+RUN cd server && npm install
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3001
+
+# Expose port
+EXPOSE 3001
+
+# Start server
+CMD ["node", "server/server.js"]
