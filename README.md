@@ -2,6 +2,12 @@
 
 Smart Farming Platform is a full-stack agriculture management app built for local development and deployment. It combines a React dashboard with an Express API and SQLite database to help farmers manage farms, track finances, get crop guidance, and use chatbot-assisted workflows.
 
+## 🚀 Deploy Now (Free)
+
+**Easiest:** [Railway](DEPLOY_RAILWAY.md) (one click)  
+**Alternative:** [Vercel + Render](DEPLOY_NOW.md) (5 min manual)  
+**Local Testing:** [Docker Compose](docker-compose.yml) (`docker-compose up`)
+
 ## Project Report Summary
 
 This project focuses on improving farm decision-making through a single digital platform that unifies crop planning, weather awareness, financial tracking, and AI-assisted support. The system is designed for practical daily use by farmers and is implemented with a modular architecture that supports both local deployment and future production scaling.
